@@ -8,7 +8,7 @@
  *
  * 각 도구는 프리뷰 픽셀을 반환하거나 즉시 스토어에 반영할 수 있다.
  */
-import type { ToolPointerEvent, PixelChange, SymmetryMode } from '../../types/editor';
+import type { ToolPointerEvent, PixelChange, SymmetryMode, SelectionRect } from '../../types/editor';
 
 /** 도구가 스토어에 반영할 결과 */
 export interface ToolResult {
@@ -18,6 +18,8 @@ export interface ToolResult {
   newColor?: string;
   /** 이 결과를 Undo 가능하게 할지 */
   undoable?: boolean;
+  /** 선택 영역 업데이트 (MoveTool에서 선택 영역 이동 시 사용) */
+  selection?: SelectionRect | null;
 }
 
 /** 도구 컨텍스트 — 현재 에디터 상태 접근 */
@@ -26,6 +28,8 @@ export interface ToolContext {
   currentColor: string;
   symmetryMode: SymmetryMode;
   symmetryAxisPosition: number;
+  /** 현재 선택 영역 (MoveTool에서 사용) */
+  selection: SelectionRect | null;
   /** 현재 레이어의 픽셀 데이터 (읽기 전용 참고) */
   getPixels(): (string | null)[][];
 }

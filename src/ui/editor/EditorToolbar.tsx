@@ -21,7 +21,6 @@ const TOOLS: { id: EditorTool; label: string; shortcut: string; iconSrc?: string
   { id: 'pencil',     label: '연필',     shortcut: 'P', iconSrc: iconPath('Tools/Pencil/Pencil Flat White 64.png') },
   { id: 'eraser',     label: '지우개',   shortcut: 'E', iconSrc: iconPath('Items/Eraser/Eraser Flat White 64.png') },
   { id: 'fill',       label: '채우기',   shortcut: 'G', iconSrc: iconPath('Tools/Paint Bucket/Paint Bucket Flat White 64.png') },
-  { id: 'eyedropper', label: '스포이드', shortcut: 'I', svgPath: 'M20 4L12 12M12 12L9 15L6 18L3 21M12 12L15 9' },
   { id: 'line',       label: '선',       shortcut: 'L', svgPath: 'M5 19L19 5' },
   { id: 'rectangle',  label: '사각형',   shortcut: 'R', svgPath: 'M3 5h18v14H3z' },
   { id: 'circle',     label: '원',       shortcut: 'C', svgPath: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' },

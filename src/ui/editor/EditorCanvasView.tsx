@@ -14,6 +14,7 @@ import { useEditorStore } from '../../stores/useEditorStore';
 import { EditorCanvas } from '../../editor/core/EditorCanvas';
 import { createToolRegistry, type BaseTool } from '../../editor/tools';
 import { SelectTool } from '../../editor/tools/SelectTool';
+import { MoveTool } from '../../editor/tools/MoveTool';
 import type { ToolPointerEvent, EditorTool } from '../../types/editor';
 
 const ZOOM_LEVELS = [1, 2, 4, 8, 12, 16, 20, 24, 32];
@@ -79,8 +80,9 @@ export const EditorCanvasView: React.FC = () => {
     currentColor,
     symmetryMode,
     symmetryAxisPosition: symmetryConfig.axisPosition,
+    selection,
     getPixels: getCurrentLayerPixels,
-  }), [canvasSize, currentColor, symmetryMode, symmetryConfig.axisPosition, getCurrentLayerPixels]);
+  }), [canvasSize, currentColor, symmetryMode, symmetryConfig.axisPosition, selection, getCurrentLayerPixels]);
 
   // 현재 활성 도구 인스턴스
   const getActiveTool = useCallback((): BaseTool => {
@@ -230,6 +232,7 @@ export const EditorCanvasView: React.FC = () => {
 
     if (result?.pixels) applyPixels(result.pixels);
     if (result?.newColor) setColor(result.newColor);
+    if (result?.selection !== undefined) setSelection(result.selection);
     if (tool instanceof SelectTool) {
       setSelection(tool.getSelection());
     }
@@ -258,6 +261,7 @@ export const EditorCanvasView: React.FC = () => {
 
     if (result?.pixels) applyPixels(result.pixels);
     if (result?.newColor) setColor(result.newColor);
+    if (result?.selection !== undefined) setSelection(result.selection);
 
     // 도구 프리뷰 업데이트
     const preview = tool.getPreview();
@@ -283,6 +287,7 @@ export const EditorCanvasView: React.FC = () => {
 
     if (result?.pixels) applyPixels(result.pixels);
     if (result?.newColor) setColor(result.newColor);
+    if (result?.selection !== undefined) setSelection(result.selection);
 
     // 프리뷰 클리어
     editorCanvasRef.current?.clearPreview();
@@ -330,6 +335,16 @@ export const EditorCanvasView: React.FC = () => {
       if (ctrl && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); return; }
       if (ctrl && e.key === 'y') { e.preventDefault(); redo(); return; }
 
+      // Ctrl/Cmd + D → 선택 해제
+      if (ctrl && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        const selectTool = toolsRef.current.select as SelectTool;
+        selectTool.clearSelection();
+        (toolsRef.current.move as MoveTool).clearFloating();
+        setSelection(null);
+        return;
+      }
+
       // 도구 단축키
       const toolMap: Record<string, EditorTool> = {
         p: 'pencil', e: 'eraser', g: 'fill', i: 'eyedropper',
@@ -350,6 +365,7 @@ export const EditorCanvasView: React.FC = () => {
         setContextMenu(null);
         const selectTool = toolsRef.current.select as SelectTool;
         selectTool.clearSelection();
+        (toolsRef.current.move as MoveTool).clearFloating();
         setSelection(null);
         return;
       }

@@ -219,7 +219,23 @@ coin.setScale(0.5);
 
 `BaseTool` 추상 클래스 → `onPointerDown/Move/Up` 생명주기.
 총 9개 도구: pencil(P), eraser(E), fill(G), eyedropper(I), line(L), rectangle(R), circle(C), select(M), move(V).
+- **스포이드(I)**: 툴바에는 표시하지 않음. Alt+클릭 또는 `I` 키로만 접근.
+- **원(C)**: 꼭짓점 기반 바운딩 박스 방식. 시작점과 끝점이 대각선 꼭짓점, 내접 타원 생성. Shift → 정원.
+- **이동(V)**: 플로팅 픽셀 시스템으로 동작. 선택 영역 이동 시 선택 박스와 픽셀이 함께 이동하며, 캔버스 밖으로 나간 픽셀도 선택 해제 전까지 보존.
+
 대칭 모드: `SymmetryMode = 'none' | 'horizontal' | 'vertical' | 'both'` + 축 위치 조절(0~1).
+
+### 이동 도구 — 플로팅 픽셀
+
+`MoveTool`은 선택 영역 내 픽셀을 "플로팅" 상태로 관리:
+1. 첫 드래그 시 선택 영역 내 픽셀을 **상대 좌표**(`rx`, `ry`)로 `floatingPixels`에 저장
+2. 매 드래그마다 "스냅샷 복원 → 원위치 클리어 → 새 위치 배치" 3단계로 처리 (복제/흔적 방지)
+3. 캔버스 밖으로 나간 픽셀은 레이어에 배치되지 않지만, `floatingPixels` 데이터는 보존
+4. 연속 드래그 시 `floatingPixels`에서 복원하므로 캔버스 밖 픽셀도 되살아남
+5. 선택 해제(Escape/Ctrl+D) 시 `clearFloating()` → 현재 캔버스 상태가 최종 결과
+
+`ToolContext`에 `selection: SelectionRect | null` 필드 포함.
+`ToolResult`에 `selection?: SelectionRect | null` 필드 — MoveTool이 선택 영역 위치도 반환.
 
 ### 키보드 단축키
 
@@ -229,8 +245,9 @@ coin.setScale(0.5);
 | X | 전경/배경 색상 스왑 |
 | Alt + 클릭 | 임시 스포이드 |
 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo |
+| Ctrl/Cmd+D | 선택 해제 |
 | [ / ] | 이전/다음 프레임 |
-| Escape | 선택 해제 |
+| Escape | 선택 해제 + 컨텍스트 메뉴 닫기 |
 
 ### 브라우저 동작 차단
 
