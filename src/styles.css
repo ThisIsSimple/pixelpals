@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Galmuri11', monospace;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+  }
+}
+
+@layer components {
+  .pixel-border {
+    border: 3px solid;
+    border-image: repeating-linear-gradient(
+      90deg,
+      currentColor 0px,
+      currentColor 3px,
+      transparent 3px,
+      transparent 6px
+    ) 3;
+  }
+
+  .pixel-btn {
+    @apply px-4 py-2 font-pixel text-xs text-pixel-text
+           bg-pixel-primary hover:bg-pixel-accent
+           border-2 border-pixel-text
+           active:translate-y-0.5
+           transition-all duration-100 cursor-pointer select-none;
+    image-rendering: pixelated;
+  }
+
+  .pixel-panel {
+    @apply bg-pixel-surface border-2 border-pixel-muted rounded-none p-4;
+    image-rendering: pixelated;
+  }
+}
