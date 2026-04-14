@@ -34,13 +34,13 @@ export const NavBar: React.FC = () => {
 
       {/* 메뉴 */}
       <div className="flex gap-1 flex-1">
-        {NAV_ITEMS.map(({ path, label, exact }) => (
+        {NAV_ITEMS.map(({ path, label, ...rest }) => (
           <Link
             key={path}
             to={path}
             className={`
               font-pixel text-pixel-xs px-3 py-1.5 transition-all duration-100
-              ${isActive(path, exact)
+              ${isActive(path, 'exact' in rest ? rest.exact : undefined)
                 ? 'bg-pixel-accent text-white'
                 : 'text-pixel-muted hover:text-pixel-text hover:bg-pixel-primary'
               }

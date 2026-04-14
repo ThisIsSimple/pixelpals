@@ -155,6 +155,6 @@ export class SpaceScene extends Phaser.Scene {
 
   shutdown(): void {
     // 씬 종료 시 이벤트 정리
-    EventBus.off('space:toggleEdit');
+    EventBus.removeAllListeners('space:toggleEdit');
   }
 }

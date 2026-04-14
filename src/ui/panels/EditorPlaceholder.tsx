@@ -14,7 +14,7 @@ export const EditorPlaceholder: React.FC<Props> = ({ onClose }) => {
     canvasSize, currentTool, currentColor, palette,
     showGrid, symmetryMode, currentLayerIndex, frames, currentFrameIndex,
     setTool, setColor, toggleGrid, toggleSymmetry,
-    setCurrentLayer, setPixel, setCanvasSize,
+    setCurrentLayer, applyPixels, setCanvasSize,
   } = useEditorStore();
 
   const tools: { id: string; label: string; icon: string }[] = [
@@ -35,9 +35,9 @@ export const EditorPlaceholder: React.FC<Props> = ({ onClose }) => {
 
   const handlePixelClick = (x: number, y: number) => {
     if (currentTool === 'pencil') {
-      setPixel(x, y, currentColor);
+      applyPixels([{ x, y, color: currentColor }]);
     } else if (currentTool === 'eraser') {
-      setPixel(x, y, null);
+      applyPixels([{ x, y, color: null }]);
     }
   };
 
