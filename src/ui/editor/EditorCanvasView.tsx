@@ -19,7 +19,7 @@ import type { ToolPointerEvent, EditorTool } from '../../types/editor';
 
 /** 줌 한계 */
 const ZOOM_MIN = 1;
-const ZOOM_MAX = 64;
+const ZOOM_MAX = 80;
 /** 줌 스텝 (한 번 스크롤에 ×1.25 또는 ÷1.25) */
 const ZOOM_FACTOR = 1.25;
 
@@ -419,14 +419,16 @@ export const EditorCanvasView: React.FC = () => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
 
       const ctrl = e.ctrlKey || e.metaKey;
+      // e.code = 물리 키 위치 (입력 언어 무관, 예: KeyP, KeyZ, BracketLeft)
+      const code = e.code;
 
       // Undo/Redo
-      if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if (ctrl && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); return; }
-      if (ctrl && e.key === 'y') { e.preventDefault(); redo(); return; }
+      if (ctrl && code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+      if (ctrl && code === 'KeyZ' && e.shiftKey) { e.preventDefault(); redo(); return; }
+      if (ctrl && code === 'KeyY') { e.preventDefault(); redo(); return; }
 
       // Ctrl/Cmd + D → 선택 해제
-      if (ctrl && e.key.toLowerCase() === 'd') {
+      if (ctrl && code === 'KeyD') {
         e.preventDefault();
         const selectTool = toolsRef.current.select as SelectTool;
         selectTool.clearSelection();
@@ -435,23 +437,23 @@ export const EditorCanvasView: React.FC = () => {
         return;
       }
 
-      // 도구 단축키
+      // 도구 단축키 (e.code 기반 — 한국어/일본어 등 IME 활성 시에도 동작)
       const toolMap: Record<string, EditorTool> = {
-        p: 'pencil', e: 'eraser', g: 'fill', i: 'eyedropper',
-        l: 'line', r: 'rectangle', c: 'circle', m: 'select', v: 'move',
+        KeyP: 'pencil', KeyE: 'eraser', KeyG: 'fill', KeyI: 'eyedropper',
+        KeyL: 'line', KeyR: 'rectangle', KeyC: 'circle', KeyM: 'select', KeyV: 'move',
       };
-      const toolKey = toolMap[e.key.toLowerCase()];
+      const toolKey = toolMap[code];
       if (toolKey && !ctrl) { setTool(toolKey); return; }
 
       // 색상 스왑
-      if (e.key.toLowerCase() === 'x' && !ctrl) { swapColors(); return; }
+      if (code === 'KeyX' && !ctrl) { swapColors(); return; }
 
       // 프레임 이동
-      if (e.key === '[') { setCurrentFrame(Math.max(0, currentFrameIndex - 1)); return; }
-      if (e.key === ']') { setCurrentFrame(Math.min(frames.length - 1, currentFrameIndex + 1)); return; }
+      if (code === 'BracketLeft') { setCurrentFrame(Math.max(0, currentFrameIndex - 1)); return; }
+      if (code === 'BracketRight') { setCurrentFrame(Math.min(frames.length - 1, currentFrameIndex + 1)); return; }
 
       // Escape → 선택 해제 + 컨텍스트 메뉴 닫기
-      if (e.key === 'Escape') {
+      if (code === 'Escape' || e.key === 'Escape') {
         setContextMenu(null);
         const selectTool = toolsRef.current.select as SelectTool;
         selectTool.clearSelection();
@@ -521,16 +523,53 @@ export const EditorCanvasView: React.FC = () => {
         onWheel={handleWheel}
       />
 
-      {/* 줌 레벨 + 더블클릭 리셋 */}
-      <div
-        className="absolute bottom-2 right-2 font-pixel text-[8px] text-pixel-muted/50 cursor-pointer hover:text-pixel-muted"
-        title="더블클릭: 화면 맞춤"
-        onDoubleClick={() => {
-          const ec = editorCanvasRef.current;
-          if (ec) { ec.fitToView(); setViewport(ec.viewport); }
-        }}
-      >
-        {viewport.zoom}x
+      {/* 줌 컨트롤 바 (우하단) */}
+      <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-pixel-surface/80 border border-pixel-muted/30 px-2 py-1 backdrop-blur-sm">
+        {/* − 버튼 */}
+        <button
+          onClick={() => {
+            const newZoom = Math.max(ZOOM_MIN, Math.round(viewport.zoom / ZOOM_FACTOR));
+            if (newZoom !== viewport.zoom) setViewport({ zoom: newZoom });
+          }}
+          className="font-pixel text-[9px] text-pixel-muted hover:text-pixel-text w-4 h-4 flex items-center justify-center"
+          title="축소"
+        >−</button>
+
+        {/* 슬라이더 */}
+        <input
+          type="range"
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          value={viewport.zoom}
+          onChange={(e) => {
+            const newZoom = Number(e.target.value);
+            setViewport({ zoom: newZoom });
+          }}
+          className="w-20 h-1 accent-pixel-accent cursor-pointer"
+          title={`줌: ${viewport.zoom}x`}
+        />
+
+        {/* + 버튼 */}
+        <button
+          onClick={() => {
+            const newZoom = Math.min(ZOOM_MAX, Math.round(viewport.zoom * ZOOM_FACTOR));
+            if (newZoom !== viewport.zoom) setViewport({ zoom: newZoom });
+          }}
+          className="font-pixel text-[9px] text-pixel-muted hover:text-pixel-text w-4 h-4 flex items-center justify-center"
+          title="확대"
+        >+</button>
+
+        {/* 줌 레벨 표시 + 더블클릭 리셋 */}
+        <span
+          className="font-pixel text-[8px] text-pixel-muted/70 w-7 text-right cursor-pointer hover:text-pixel-muted"
+          title="더블클릭: 화면 맞춤"
+          onDoubleClick={() => {
+            const ec = editorCanvasRef.current;
+            if (ec) { ec.fitToView(); setViewport(ec.viewport); }
+          }}
+        >
+          {viewport.zoom}x
+        </span>
       </div>
 
       {/* 커스텀 컨텍스트 메뉴 */}
