@@ -18,7 +18,7 @@ export class EraserTool extends BaseTool {
     this.lastPixel = { x: e.pixelX, y: e.pixelY };
 
     const changes: PixelChange[] = [{ x: e.pixelX, y: e.pixelY, color: null }];
-    return { pixels: this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode) };
+    return { pixels: this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition) };
   }
 
   onPointerMove(e: ToolPointerEvent, ctx: ToolContext): ToolResult | null {
@@ -30,7 +30,7 @@ export class EraserTool extends BaseTool {
     );
     const changes: PixelChange[] = line.slice(1).map(([x, y]) => ({ x, y, color: null }));
     this.lastPixel = { x: e.pixelX, y: e.pixelY };
-    return { pixels: this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode) };
+    return { pixels: this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition) };
   }
 
   onPointerUp(): ToolResult | null {

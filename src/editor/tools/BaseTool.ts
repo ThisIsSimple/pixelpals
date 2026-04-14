@@ -8,7 +8,7 @@
  *
  * 각 도구는 프리뷰 픽셀을 반환하거나 즉시 스토어에 반영할 수 있다.
  */
-import type { ToolPointerEvent, PixelChange } from '../../types/editor';
+import type { ToolPointerEvent, PixelChange, SymmetryMode } from '../../types/editor';
 
 /** 도구가 스토어에 반영할 결과 */
 export interface ToolResult {
@@ -24,7 +24,8 @@ export interface ToolResult {
 export interface ToolContext {
   canvasSize: number;
   currentColor: string;
-  symmetryMode: boolean;
+  symmetryMode: SymmetryMode;
+  symmetryAxisPosition: number;
   /** 현재 레이어의 픽셀 데이터 (읽기 전용 참고) */
   getPixels(): (string | null)[][];
 }
@@ -57,18 +58,48 @@ export abstract class BaseTool {
 
   /** 대칭 모드 적용: 변경 목록에 미러 픽셀 추가 */
   protected applySymmetry(
-    changes: PixelChange[], canvasSize: number, symmetry: boolean,
+    changes: PixelChange[], canvasSize: number, symmetry: SymmetryMode, axisPos = 0.5,
   ): PixelChange[] {
-    if (!symmetry) return changes;
-    const mirrored: PixelChange[] = [];
+    if (symmetry === 'none') return changes;
+
+    const axisX = Math.round(canvasSize * axisPos);
+    const axisY = Math.round(canvasSize * axisPos);
+    const result: PixelChange[] = [];
+    const seen = new Set<string>();
+
     for (const c of changes) {
-      mirrored.push(c);
-      const mirrorX = canvasSize - 1 - c.x;
-      if (mirrorX !== c.x) {
-        mirrored.push({ x: mirrorX, y: c.y, color: c.color });
+      const key = `${c.x},${c.y}`;
+      if (!seen.has(key)) { result.push(c); seen.add(key); }
+
+      if (symmetry === 'horizontal' || symmetry === 'both') {
+        const mirrorX = 2 * axisX - 1 - c.x;
+        const hKey = `${mirrorX},${c.y}`;
+        if (mirrorX !== c.x && mirrorX >= 0 && mirrorX < canvasSize && !seen.has(hKey)) {
+          result.push({ x: mirrorX, y: c.y, color: c.color });
+          seen.add(hKey);
+        }
+      }
+
+      if (symmetry === 'vertical' || symmetry === 'both') {
+        const mirrorY = 2 * axisY - 1 - c.y;
+        const vKey = `${c.x},${mirrorY}`;
+        if (mirrorY !== c.y && mirrorY >= 0 && mirrorY < canvasSize && !seen.has(vKey)) {
+          result.push({ x: c.x, y: mirrorY, color: c.color });
+          seen.add(vKey);
+        }
+      }
+
+      if (symmetry === 'both') {
+        const mirrorX = 2 * axisX - 1 - c.x;
+        const mirrorY = 2 * axisY - 1 - c.y;
+        const bKey = `${mirrorX},${mirrorY}`;
+        if (mirrorX >= 0 && mirrorX < canvasSize && mirrorY >= 0 && mirrorY < canvasSize && !seen.has(bKey)) {
+          result.push({ x: mirrorX, y: mirrorY, color: c.color });
+          seen.add(bKey);
+        }
       }
     }
-    return mirrored;
+    return result;
   }
 
   /** 픽셀이 캔버스 범위 안인지 확인 */

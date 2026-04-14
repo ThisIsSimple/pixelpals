@@ -11,6 +11,7 @@ import { LineTool } from './LineTool';
 import { RectangleTool } from './RectangleTool';
 import { CircleTool } from './CircleTool';
 import { SelectTool } from './SelectTool';
+import { MoveTool } from './MoveTool';
 
 export function createToolRegistry(): Record<EditorTool, BaseTool> {
   return {
@@ -22,6 +23,7 @@ export function createToolRegistry(): Record<EditorTool, BaseTool> {
     rectangle: new RectangleTool(),
     circle: new CircleTool(),
     select: new SelectTool(),
+    move: new MoveTool(),
   };
 }
 
@@ -34,3 +36,4 @@ export { LineTool } from './LineTool';
 export { RectangleTool } from './RectangleTool';
 export { CircleTool } from './CircleTool';
 export { SelectTool } from './SelectTool';
+export { MoveTool } from './MoveTool';

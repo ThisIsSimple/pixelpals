@@ -22,7 +22,7 @@ export class PencilTool extends BaseTool {
 
     const color = e.button === 2 ? null : ctx.currentColor;
     const changes: PixelChange[] = [{ x: e.pixelX, y: e.pixelY, color }];
-    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode);
+    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
 
     this.allChanges.push(...final);
     return { pixels: final };
@@ -40,7 +40,7 @@ export class PencilTool extends BaseTool {
 
     // 첫 점은 이전 이벤트에서 이미 그렸으므로 제외
     const changes: PixelChange[] = line.slice(1).map(([x, y]) => ({ x, y, color }));
-    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode);
+    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
 
     this.allChanges.push(...final);
     this.lastPixel = { x: e.pixelX, y: e.pixelY };

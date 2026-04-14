@@ -12,16 +12,19 @@
  */
 import type {
   LayerData, ViewportState, PixelChange, SelectionRect, OnionSkinConfig,
+  SymmetryMode,
 } from '../../types/editor';
 import { LayerCompositor } from './LayerCompositor';
 
 const CHECKER_LIGHT = '#c8c8c8';
 const CHECKER_DARK = '#a0a0a0';
-const GRID_COLOR = 'rgba(255,255,255,0.12)';
+const GRID_COLOR = 'rgba(255,255,255,0.15)';
 const SELECTION_DASH = [4, 4];
 const CURSOR_COLOR = 'rgba(255,255,255,0.5)';
 const ONION_PREV_COLOR = 'rgba(255,60,60,';  // + opacity)
 const ONION_NEXT_COLOR = 'rgba(60,120,255,'; // + opacity)
+const SYMMETRY_LINE_COLOR = 'rgba(255, 0, 255, 0.6)';
+const SYMMETRY_LINE_DASH = [6, 3];
 
 export class EditorCanvas {
   private canvas: HTMLCanvasElement;
@@ -40,6 +43,10 @@ export class EditorCanvas {
   // 캐시: 합성된 프레임 이미지
   private _compositeCache: ImageData | null = null;
   private _compositeDirty = true;
+
+  // 대칭 가이드라인
+  private _symmetryMode: SymmetryMode = 'none';
+  private _symmetryAxisPosition = 0.5;
 
   // 어니언 스킨 캐시
   private _onionPrevImages: ImageData[] = [];
@@ -78,6 +85,10 @@ export class EditorCanvas {
   clearPreview(): void { this._preview = []; }
   setSelection(sel: SelectionRect | null): void { this._selection = sel; }
   setOnionSkinConfig(cfg: OnionSkinConfig): void { this._onionConfig = cfg; }
+  setSymmetry(mode: SymmetryMode, axisPosition: number): void {
+    this._symmetryMode = mode;
+    this._symmetryAxisPosition = axisPosition;
+  }
 
   /** 합성 캐시 무효화 — 레이어 데이터 변경 시 호출 */
   invalidate(): void { this._compositeDirty = true; }
@@ -161,9 +172,14 @@ export class EditorCanvas {
       this.drawPreview(originX, originY, zoom);
     }
 
-    // 5. 그리드
-    if (this._showGrid && zoom >= 4) {
+    // 5. 그리드 (zoom >= 2에서 표시)
+    if (this._showGrid && zoom >= 2) {
       this.drawGrid(originX, originY, totalSize, zoom);
+    }
+
+    // 5.5. 대칭 가이드라인
+    if (this._symmetryMode !== 'none') {
+      this.drawSymmetryGuide(originX, originY, totalSize, zoom);
     }
 
     // 6. 선택 영역
@@ -351,5 +367,35 @@ export class EditorCanvas {
         }
       }
     }
+  }
+
+  private drawSymmetryGuide(ox: number, oy: number, totalSize: number, zoom: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = SYMMETRY_LINE_COLOR;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(SYMMETRY_LINE_DASH);
+
+    const axisPixel = Math.round(this._size * this._symmetryAxisPosition);
+
+    if (this._symmetryMode === 'horizontal' || this._symmetryMode === 'both') {
+      // 세로선 (좌우 대칭)
+      const x = Math.round(ox + axisPixel * zoom) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, oy);
+      ctx.lineTo(x, oy + totalSize);
+      ctx.stroke();
+    }
+
+    if (this._symmetryMode === 'vertical' || this._symmetryMode === 'both') {
+      // 가로선 (상하 대칭)
+      const y = Math.round(oy + axisPixel * zoom) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(ox, y);
+      ctx.lineTo(ox + totalSize, y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 }

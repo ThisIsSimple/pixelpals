@@ -33,8 +33,8 @@ export class LineTool extends BaseTool {
     const points = bresenhamLine(this.start.x, this.start.y, endX, endY);
     this.previewPixels = points.map(([x, y]) => ({ x, y, color: this.currentColor }));
 
-    if (ctx.symmetryMode) {
-      this.previewPixels = this.applySymmetry(this.previewPixels, ctx.canvasSize, true);
+    if (ctx.symmetryMode !== 'none') {
+      this.previewPixels = this.applySymmetry(this.previewPixels, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
     }
     return null;
   }
@@ -49,7 +49,7 @@ export class LineTool extends BaseTool {
 
     const points = bresenhamLine(this.start.x, this.start.y, endX, endY);
     let changes: PixelChange[] = points.map(([x, y]) => ({ x, y, color: this.currentColor }));
-    changes = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode);
+    changes = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
 
     this.start = null;
     this.previewPixels = [];

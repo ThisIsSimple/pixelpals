@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import type {
   EditorTool, CanvasSize, LayerData, AnimationFrame,
   PixelChange, ViewportState, SelectionRect, OnionSkinConfig,
+  SymmetryMode, SymmetryConfig,
 } from '../types/editor';
 import { DEFAULT_CANVAS_SIZE, EDITOR_LAYER_NAMES } from '../config/constants';
 import { DEFAULT_PALETTE } from '../config/palette';
@@ -48,7 +49,10 @@ interface EditorState {
   palette: string[];
   palettePresetIndex: number;
   showGrid: boolean;
-  symmetryMode: boolean;
+  symmetryMode: SymmetryMode;
+  symmetryConfig: SymmetryConfig;
+  /** 작업 변경 여부 (뒤로가기 방지용) */
+  isDirty: boolean;
 
   // === 뷰포트 ===
   viewport: ViewportState;
@@ -82,6 +86,8 @@ interface EditorState {
   setPalette: (colors: string[], presetIndex: number) => void;
   toggleGrid: () => void;
   toggleSymmetry: () => void;
+  setSymmetryMode: (mode: SymmetryMode) => void;
+  setSymmetryAxisPosition: (pos: number) => void;
   setViewport: (vp: Partial<ViewportState>) => void;
 
   // 레이어
@@ -126,7 +132,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   palette: [...DEFAULT_PALETTE.colors],
   palettePresetIndex: 0,
   showGrid: true,
-  symmetryMode: false,
+  symmetryMode: 'none' as SymmetryMode,
+  symmetryConfig: { mode: 'none' as SymmetryMode, axisPosition: 0.5 },
+  isDirty: false,
   viewport: { zoom: 1, panX: 0, panY: 0 },
   frames: [createEmptyFrame(0, DEFAULT_CANVAS_SIZE as CanvasSize)],
   currentFrameIndex: 0,
@@ -163,8 +171,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     secondaryColor: s.currentColor,
   })),
   setPalette: (colors, presetIndex) => set({ palette: colors, palettePresetIndex: presetIndex }),
-  toggleGrid: () => set(s => ({ showGrid: !s.showGrid })),
-  toggleSymmetry: () => set(s => ({ symmetryMode: !s.symmetryMode })),
+  toggleGrid: () => set(s => ({ showGrid: !s.showGrid, renderVersion: s.renderVersion + 1 })),
+  toggleSymmetry: () => set(s => {
+    const modes: SymmetryMode[] = ['none', 'horizontal', 'vertical', 'both'];
+    const idx = modes.indexOf(s.symmetryMode);
+    const next = modes[(idx + 1) % modes.length];
+    return {
+      symmetryMode: next,
+      symmetryConfig: { ...s.symmetryConfig, mode: next },
+      renderVersion: s.renderVersion + 1,
+    };
+  }),
+  setSymmetryMode: (mode) => set(s => ({
+    symmetryMode: mode,
+    symmetryConfig: { ...s.symmetryConfig, mode },
+    renderVersion: s.renderVersion + 1,
+  })),
+  setSymmetryAxisPosition: (pos) => set(s => ({
+    symmetryConfig: { ...s.symmetryConfig, axisPosition: Math.max(0, Math.min(1, pos)) },
+    renderVersion: s.renderVersion + 1,
+  })),
   setViewport: (vp) => set(s => ({ viewport: { ...s.viewport, ...vp } })),
 
   // --- 레이어 ---
@@ -282,7 +308,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     layers[currentLayerIndex] = layer;
     frame.layers = layers;
     newFrames[currentFrameIndex] = frame;
-    set({ frames: newFrames, renderVersion: get().renderVersion + 1 });
+    set({ frames: newFrames, renderVersion: get().renderVersion + 1, isDirty: true });
   },
 
   setSelection: (sel) => set({ selection: sel }),

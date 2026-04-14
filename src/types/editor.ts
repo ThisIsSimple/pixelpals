@@ -10,7 +10,18 @@ export type EditorTool =
   | 'rectangle'
   | 'circle'
   | 'eyedropper'
-  | 'select';
+  | 'select'
+  | 'move';
+
+/** 대칭 모드 */
+export type SymmetryMode = 'none' | 'horizontal' | 'vertical' | 'both';
+
+/** 대칭 설정 */
+export interface SymmetryConfig {
+  mode: SymmetryMode;
+  /** 대칭 축 위치 (0~1 비율, 0.5=중앙) */
+  axisPosition: number;
+}
 
 /** 단일 레이어 픽셀 데이터 */
 export interface LayerData {

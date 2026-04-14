@@ -122,7 +122,7 @@ export const EditorPlaceholder: React.FC<Props> = ({ onClose }) => {
 
           <button onClick={toggleSymmetry} style={{
             width: '40px', height: '40px', fontSize: '11px',
-            backgroundColor: symmetryMode ? '#008751' : '#0f3460',
+            backgroundColor: symmetryMode !== 'none' ? '#008751' : '#0f3460',
             border: '1px solid #8a8a9a', cursor: 'pointer', color: '#eaeaea',
             fontFamily: 'Galmuri11',
           }}>

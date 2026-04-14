@@ -32,16 +32,46 @@ src/
 ├── main.ts               # React SPA 초기화 (Phaser 없음)
 ├── config/               # 상수, 팔레트
 ├── scenes/               # Phaser 씬 (BootScene, SpaceScene만 남음)
+├── editor/               # 픽셀 에디터 코어 (Canvas 2D 렌더링 엔진)
+│   ├── core/
+│   │   ├── algorithms.ts     # Bresenham, FloodFill, MidpointCircle 등 순수 알고리즘
+│   │   ├── EditorCanvas.ts   # Canvas 2D 렌더링 파이프라인 (체커보드→레이어→그리드→대칭선→선택→커서)
+│   │   ├── LayerCompositor.ts # OffscreenCanvas 레이어 합성
+│   │   └── HistoryManager.ts  # 스냅샷 기반 Undo/Redo (최대 80개)
+│   ├── tools/
+│   │   ├── BaseTool.ts       # 추상 도구 기반 (대칭 H/V/Both 지원)
+│   │   ├── PencilTool.ts     # Bresenham 보간 드로잉
+│   │   ├── EraserTool.ts     # 투명 지우기
+│   │   ├── FillTool.ts       # FloodFill BFS
+│   │   ├── EyedropperTool.ts # 색상 샘플링
+│   │   ├── LineTool.ts       # 직선 (Shift → 각도 스냅)
+│   │   ├── RectangleTool.ts  # 사각형 (Shift → 정사각형)
+│   │   ├── CircleTool.ts     # 원 (Midpoint Circle)
+│   │   ├── SelectTool.ts     # 사각형 선택
+│   │   ├── MoveTool.ts       # 레이어 내용 이동
+│   │   └── index.ts          # 도구 레지스트리
+│   └── export/
+│       └── SpriteSheetExporter.ts # 스프라이트 시트 PNG 생성
 ├── ui/
 │   ├── App.tsx           # React Router 루트
 │   ├── layouts/          # GameLayout (NavBar + Outlet)
 │   ├── pages/            # HomePage, EditorPage, GachaPage, CollectionPage, SpacePage, DungeonPage
+│   ├── editor/           # 에디터 React UI 컴포넌트
+│   │   ├── EditorLayout.tsx      # 메인 레이아웃 (헤더+툴바+캔버스+사이드패널+타임라인)
+│   │   ├── EditorCanvasView.tsx  # Canvas 래퍼 (포인터→도구, 줌, 단축키, 커스텀 컨텍스트 메뉴)
+│   │   ├── EditorToolbar.tsx     # 좌측 도구바 (9개 도구, 아이콘 팩 이미지 사용)
+│   │   ├── PalettePanel.tsx      # 전경/배경 색상 + 팔레트 프리셋
+│   │   ├── LayerPanel.tsx        # 레이어 관리 (표시/잠금/투명도/순서)
+│   │   ├── PreviewPanel.tsx      # 4x 미리보기 + 애니메이션 재생
+│   │   ├── TimelinePanel.tsx     # 프레임 타임라인 (재생/FPS/어니언스킨)
+│   │   ├── TemplateModal.tsx     # 초보자 템플릿 선택 (6종)
+│   │   └── ExportModal.tsx       # 스프라이트 시트 PNG 내보내기
 │   ├── components/       # PhaserGame, NavBar 등 재사용 컴포넌트
-│   ├── panels/           # EditorPlaceholder 등 패널
+│   ├── panels/           # EditorPlaceholder (레거시) 등 패널
 │   └── common/           # Toast 등 공통
 ├── stores/               # Zustand (useGameStore, useUIStore, useEditorStore)
 ├── services/             # 서비스 인터페이스 + Mock 구현
-├── types/                # TypeScript 타입
+├── types/                # TypeScript 타입 (editor.ts: SymmetryMode, SymmetryConfig 등)
 └── utils/                # EventBus, GridUtils, RandomGen
 ```
 
@@ -168,6 +198,52 @@ coin.setScale(0.5);
 - **Zustand** (상태 관리), **Dexie.js** (IndexedDB)
 - **Tailwind CSS** + "Galmuri11" 픽셀 폰트
 - 서비스 추상화 패턴 (Mock → API 전환 대비)
+
+---
+
+## 픽셀 에디터 아키텍처
+
+### 렌더링 엔진 — Canvas 2D
+
+`EditorCanvas.ts`가 HTML Canvas 위에 다음 순서로 렌더링:
+1. 체커보드 배경 (투명 영역 시각화)
+2. 어니언 스킨 (이전=빨강 틴트, 다음=파랑 틴트)
+3. 합성된 레이어 이미지 (LayerCompositor via OffscreenCanvas)
+4. 도구 프리뷰 오버레이
+5. 그리드 (zoom ≥ 2에서 표시)
+6. 대칭 가이드라인 (마젠타 대시, H/V/Both 지원)
+7. 선택 영역 (marching ants)
+8. 커서 하이라이트
+
+### 도구 시스템
+
+`BaseTool` 추상 클래스 → `onPointerDown/Move/Up` 생명주기.
+총 9개 도구: pencil(P), eraser(E), fill(G), eyedropper(I), line(L), rectangle(R), circle(C), select(M), move(V).
+대칭 모드: `SymmetryMode = 'none' | 'horizontal' | 'vertical' | 'both'` + 축 위치 조절(0~1).
+
+### 키보드 단축키
+
+| 키 | 기능 |
+|----|------|
+| P / E / G / I / L / R / C / M / V | 도구 전환 |
+| X | 전경/배경 색상 스왑 |
+| Alt + 클릭 | 임시 스포이드 |
+| Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo |
+| [ / ] | 이전/다음 프레임 |
+| Escape | 선택 해제 |
+
+### 브라우저 동작 차단
+
+에디터 페이지에서 자동 활성화:
+- **뒤로가기 방지**: `popstate` + `beforeunload` + 마우스 사이드 버튼 차단. 작업 변경 시 확인 다이얼로그.
+- **브라우저 줌 차단**: Ctrl+마우스휠, Ctrl+/-/=/0 차단. 에디터 캔버스만 자체 줌(1x~32x).
+- **우클릭 차단**: 브라우저 기본 메뉴 대신 에디터 커스텀 컨텍스트 메뉴 표시.
+
+### 상태 관리 — useEditorStore (Zustand)
+
+주요 상태: `canvasSize`, `currentTool`, `currentColor/secondaryColor`, `symmetryMode/symmetryConfig`, `frames[]`, `viewport`, `selection`, `isDirty`, `renderVersion` (Canvas 재렌더 트리거).
+
+Undo/Redo: `HistoryManager` 싱글턴, 스냅샷 기반 (프레임 배열 deep clone), 최대 80개.
 
 ## 텍스트 선명도 규칙
 - Phaser GameConfig: `pixelArt: false`, `antialias: true`, `resolution: devicePixelRatio`

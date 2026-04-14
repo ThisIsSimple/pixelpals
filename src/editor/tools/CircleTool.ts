@@ -68,7 +68,7 @@ export class CircleTool extends BaseTool {
     });
 
     let changes: PixelChange[] = unique.map(([x, y]) => ({ x, y, color: this.currentColor }));
-    changes = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode);
+    changes = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
     return changes;
   }
 }

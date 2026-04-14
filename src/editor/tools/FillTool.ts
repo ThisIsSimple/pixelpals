@@ -20,7 +20,7 @@ export class FillTool extends BaseTool {
     if (affected.length === 0) return null;
 
     const changes: PixelChange[] = affected.map(([x, y]) => ({ x, y, color }));
-    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode);
+    const final = this.applySymmetry(changes, ctx.canvasSize, ctx.symmetryMode, ctx.symmetryAxisPosition);
     return { pixels: final, undoable: true };
   }
 
