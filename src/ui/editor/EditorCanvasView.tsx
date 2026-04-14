@@ -17,7 +17,11 @@ import { SelectTool } from '../../editor/tools/SelectTool';
 import { MoveTool } from '../../editor/tools/MoveTool';
 import type { ToolPointerEvent, EditorTool } from '../../types/editor';
 
-const ZOOM_LEVELS = [1, 2, 4, 8, 12, 16, 20, 24, 32];
+/** 줌 한계 */
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 64;
+/** 줌 스텝 (한 번 스크롤에 ×1.25 또는 ÷1.25) */
+const ZOOM_FACTOR = 1.25;
 
 /** 커스텀 컨텍스트 메뉴 아이템 */
 interface ContextMenuItem {
@@ -36,6 +40,11 @@ export const EditorCanvasView: React.FC = () => {
   const rafRef = useRef(0);
   const isDrawingRef = useRef(false);
   const strokeSnapshotSaved = useRef(false);
+
+  // Space+드래그 패닝 상태
+  const isSpaceHeldRef = useRef(false);
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
   // 컨텍스트 메뉴 상태
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -160,6 +169,41 @@ export const EditorCanvasView: React.FC = () => {
     };
   }, []);
 
+  // ─── Space 키 추적 (패닝 모드) ───
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        // 입력 필드에서는 무시
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        isSpaceHeldRef.current = true;
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        isSpaceHeldRef.current = false;
+        isPanningRef.current = false;
+        panStartRef.current = null;
+      }
+    };
+    // blur 시 리셋 (탭 전환 등)
+    const handleBlur = () => {
+      isSpaceHeldRef.current = false;
+      isPanningRef.current = false;
+      panStartRef.current = null;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   // ─── 렌더 루프 ───
 
   useEffect(() => {
@@ -215,6 +259,14 @@ export const EditorCanvasView: React.FC = () => {
     // 컨텍스트 메뉴 닫기
     setContextMenu(null);
 
+    // Space+드래그 → 패닝 모드
+    if (isSpaceHeldRef.current) {
+      isPanningRef.current = true;
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX: viewport.panX, panY: viewport.panY };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
+
     const te = makeToolEvent(e);
     if (!te) return;
 
@@ -238,9 +290,18 @@ export const EditorCanvasView: React.FC = () => {
     }
 
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [makeToolEvent, getActiveTool, toolContext, applyPixels, setColor, saveSnapshot, setSelection]);
+  }, [makeToolEvent, getActiveTool, toolContext, applyPixels, setColor, saveSnapshot, setSelection, viewport.panX, viewport.panY]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Space+드래그 패닝
+    if (isPanningRef.current && panStartRef.current) {
+      const dpr = window.devicePixelRatio || 1;
+      const dx = (e.clientX - panStartRef.current.x) * dpr;
+      const dy = (e.clientY - panStartRef.current.y) * dpr;
+      setViewport({ panX: panStartRef.current.panX + dx, panY: panStartRef.current.panY + dy });
+      return;
+    }
+
     const ec = editorCanvasRef.current;
     if (!ec) return;
 
@@ -273,9 +334,16 @@ export const EditorCanvasView: React.FC = () => {
     }
 
     ec.render(currentLayers);
-  }, [makeToolEvent, getActiveTool, toolContext, currentLayers, applyPixels, setColor, setSelection]);
+  }, [makeToolEvent, getActiveTool, toolContext, currentLayers, applyPixels, setColor, setSelection, setViewport]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // 패닝 종료
+    if (isPanningRef.current) {
+      isPanningRef.current = false;
+      panStartRef.current = null;
+      return;
+    }
+
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
@@ -304,19 +372,41 @@ export const EditorCanvasView: React.FC = () => {
     if (ec) ec.render(currentLayers);
   }, [currentLayers]);
 
-  // ─── 줌 (마우스 휠) — 에디터 캔버스만 줌 ───
+  // ─── 줌 (마우스 휠) — 마우스 위치 기준 줌 ───
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const { zoom } = viewport;
-    const currentIdx = ZOOM_LEVELS.indexOf(zoom);
-    const nextIdx = e.deltaY < 0
-      ? Math.min(currentIdx + 1, ZOOM_LEVELS.length - 1)
-      : Math.max(currentIdx - 1, 0);
-    const newZoom = ZOOM_LEVELS[nextIdx] ?? zoom;
 
-    if (newZoom !== zoom) {
+    const { zoom, panX, panY } = viewport;
+    const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+    const raw = zoom * factor;
+    const newZoom = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)));
+
+    if (newZoom === zoom) return;
+
+    // 마우스 위치 기준 줌 (마우스 아래 픽셀이 움직이지 않도록)
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      // 마우스의 캔버스 내 좌표
+      const mx = (e.clientX - rect.left) * dpr;
+      const my = (e.clientY - rect.top) * dpr;
+      // 현재 캔버스 중심
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      // 마우스 → 캔버스 중심 오프셋
+      const dx = mx - cx;
+      const dy = my - cy;
+      // 줌 비율
+      const ratio = newZoom / zoom;
+      // 팬 보정: 마우스 위치가 고정되도록
+      const newPanX = panX * ratio + dx * (1 - ratio);
+      const newPanY = panY * ratio + dy * (1 - ratio);
+
+      setViewport({ zoom: newZoom, panX: newPanX, panY: newPanY });
+    } else {
       setViewport({ zoom: newZoom });
     }
   }, [viewport, setViewport]);
@@ -420,7 +510,10 @@ export const EditorCanvasView: React.FC = () => {
       <canvas
         ref={canvasRef}
         className="absolute inset-0 touch-none"
-        style={{ imageRendering: 'pixelated' }}
+        style={{
+          imageRendering: 'pixelated',
+          cursor: isSpaceHeldRef.current ? (isPanningRef.current ? 'grabbing' : 'grab') : 'crosshair',
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -428,8 +521,15 @@ export const EditorCanvasView: React.FC = () => {
         onWheel={handleWheel}
       />
 
-      {/* 줌 레벨 표시 */}
-      <div className="absolute bottom-2 right-2 font-pixel text-[8px] text-pixel-muted/50 pointer-events-none">
+      {/* 줌 레벨 + 더블클릭 리셋 */}
+      <div
+        className="absolute bottom-2 right-2 font-pixel text-[8px] text-pixel-muted/50 cursor-pointer hover:text-pixel-muted"
+        title="더블클릭: 화면 맞춤"
+        onDoubleClick={() => {
+          const ec = editorCanvasRef.current;
+          if (ec) { ec.fitToView(); setViewport(ec.viewport); }
+        }}
+      >
         {viewport.zoom}x
       </div>
 
