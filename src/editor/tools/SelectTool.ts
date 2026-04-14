@@ -98,6 +98,12 @@ export class SelectTool extends BaseTool {
     return null;
   }
 
+  /** 선택 영역 설정 (외부에서 직접 지정) */
+  setSelection(rect: SelectionRect): void {
+    this.selection = rect;
+    this.selectedPixels = [];
+  }
+
   /** 선택 영역 해제 */
   clearSelection(): void {
     this.selection = null;

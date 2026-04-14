@@ -79,6 +79,8 @@ interface EditorState {
 
   // === 액션 ===
   setCanvasSize: (size: CanvasSize) => void;
+  /** 내용을 보존하면서 캔버스 크기 변경 (좌상단 기준) */
+  resizeCanvas: (size: CanvasSize) => void;
   setTool: (tool: EditorTool) => void;
   setColor: (color: string) => void;
   setSecondaryColor: (color: string) => void;
@@ -156,6 +158,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       frames: [createEmptyFrame(0, size)],
       currentFrameIndex: 0,
       currentLayerIndex: 0,
+      selection: null,
+      canUndo: false,
+      canRedo: false,
+      renderVersion: get().renderVersion + 1,
+    });
+  },
+
+  resizeCanvas: (newSize) => {
+    const { frames, canvasSize: oldSize } = get();
+    if (newSize === oldSize) return;
+
+    historyManager.clear();
+
+    // 모든 프레임의 모든 레이어 픽셀을 새 크기에 맞게 복사 (좌상단 기준)
+    const copySize = Math.min(oldSize, newSize);
+    const newFrames = frames.map((frame, fi) => ({
+      ...frame,
+      frameIndex: fi,
+      layers: frame.layers.map(layer => {
+        const newPixels: (string | null)[][] = Array.from({ length: newSize }, () => Array(newSize).fill(null));
+        for (let y = 0; y < copySize; y++) {
+          for (let x = 0; x < copySize; x++) {
+            newPixels[y][x] = layer.pixels[y]?.[x] ?? null;
+          }
+        }
+        return { ...layer, pixels: newPixels };
+      }),
+    }));
+
+    set({
+      canvasSize: newSize,
+      frames: newFrames,
       selection: null,
       canUndo: false,
       canRedo: false,

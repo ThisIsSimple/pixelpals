@@ -1,6 +1,6 @@
 /** 픽셀 에디터 타입 정의 */
 
-export type CanvasSize = 16 | 24 | 32;
+export type CanvasSize = 8 | 16 | 24 | 32 | 48 | 64;
 
 export type EditorTool =
   | 'pencil'

@@ -437,6 +437,33 @@ export const EditorCanvasView: React.FC = () => {
         return;
       }
 
+      // Ctrl/Cmd + A → 전체 선택
+      if (ctrl && code === 'KeyA') {
+        e.preventDefault();
+        const selectTool = toolsRef.current.select as SelectTool;
+        selectTool.setSelection({ x: 0, y: 0, width: canvasSize, height: canvasSize });
+        setSelection({ x: 0, y: 0, width: canvasSize, height: canvasSize });
+        return;
+      }
+
+      // Backspace / Delete → 선택 영역 내 픽셀 삭제
+      if (code === 'Backspace' || code === 'Delete') {
+        if (selection) {
+          e.preventDefault();
+          saveSnapshot('delete selection');
+          const changes: import('../../types/editor').PixelChange[] = [];
+          for (let dy = 0; dy < selection.height; dy++) {
+            for (let dx = 0; dx < selection.width; dx++) {
+              changes.push({ x: selection.x + dx, y: selection.y + dy, color: null });
+            }
+          }
+          applyPixels(changes);
+          // 플로팅 픽셀도 클리어
+          (toolsRef.current.move as MoveTool).clearFloating();
+        }
+        return;
+      }
+
       // 도구 단축키 (e.code 기반 — 한국어/일본어 등 IME 활성 시에도 동작)
       const toolMap: Record<string, EditorTool> = {
         KeyP: 'pencil', KeyE: 'eraser', KeyG: 'fill', KeyI: 'eyedropper',
@@ -465,7 +492,7 @@ export const EditorCanvasView: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, setTool, swapColors, setCurrentFrame, currentFrameIndex, frames.length, setSelection]);
+  }, [undo, redo, setTool, swapColors, setCurrentFrame, currentFrameIndex, frames.length, setSelection, canvasSize, selection, saveSnapshot, applyPixels]);
 
   // ─── 커스텀 우클릭 컨텍스트 메뉴 ───
 

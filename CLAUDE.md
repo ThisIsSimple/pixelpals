@@ -247,7 +247,9 @@ coin.setScale(0.5);
 | X | 전경/배경 색상 스왑 |
 | Alt + 클릭 | 임시 스포이드 |
 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo |
+| Ctrl/Cmd+A | 전체 선택 |
 | Ctrl/Cmd+D | 선택 해제 |
+| Backspace / Delete | 선택 영역 내 픽셀 삭제 |
 | [ / ] | 이전/다음 프레임 |
 | Escape | 선택 해제 + 컨텍스트 메뉴 닫기 |
 | Space + 드래그 | 캔버스 패닝 (확대 시 화면 이동) |

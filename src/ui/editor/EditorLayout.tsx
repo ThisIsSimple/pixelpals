@@ -36,6 +36,7 @@ export const EditorLayout: React.FC<Props> = ({ onClose }) => {
 
   const canvasSize = useEditorStore(s => s.canvasSize);
   const setCanvasSize = useEditorStore(s => s.setCanvasSize);
+  const resizeCanvas = useEditorStore(s => s.resizeCanvas);
   const canUndo = useEditorStore(s => s.canUndo);
   const canRedo = useEditorStore(s => s.canRedo);
   const undo = useEditorStore(s => s.undo);
@@ -137,11 +138,20 @@ export const EditorLayout: React.FC<Props> = ({ onClose }) => {
             onChange={(e) => {
               const size = Number(e.target.value) as CanvasSize;
               if (size === canvasSize) return;
+
               if (isDirty) {
-                const ok = window.confirm('캔버스 크기를 변경하면 현재 작업이 초기화됩니다. 계속하시겠습니까?');
+                // 줄이는 경우 잘림 경고
+                const isShrinking = size < canvasSize;
+                const message = isShrinking
+                  ? `캔버스를 ${canvasSize}x${canvasSize} → ${size}x${size}로 줄입니다.\n` +
+                    `${size}px 바깥의 그림은 잘립니다. 기존 내용을 유지하며 크기를 변경할까요?`
+                  : `캔버스를 ${canvasSize}x${canvasSize} → ${size}x${size}로 확장합니다.\n` +
+                    `기존 내용을 유지하며 크기를 변경할까요?`;
+                const ok = window.confirm(message);
                 if (!ok) return;
               }
-              setCanvasSize(size);
+
+              resizeCanvas(size);
             }}
             className="font-pixel text-[9px] bg-pixel-primary text-pixel-text border border-pixel-muted/30 px-1 py-0.5"
           >

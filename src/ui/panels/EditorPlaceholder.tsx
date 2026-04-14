@@ -63,7 +63,7 @@ export const EditorPlaceholder: React.FC<Props> = ({ onClose }) => {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
             value={canvasSize}
-            onChange={(e) => setCanvasSize(Number(e.target.value) as 16 | 24 | 32)}
+            onChange={(e) => setCanvasSize(Number(e.target.value) as import('../../types/editor').CanvasSize)}
             style={{
               fontFamily: 'Galmuri11', fontSize: '11px',
               backgroundColor: '#0f3460', color: '#eaeaea', border: '1px solid #8a8a9a',

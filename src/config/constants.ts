@@ -8,7 +8,7 @@ export const MAX_SPACE_WIDTH = 64;
 export const MAX_SPACE_HEIGHT = 64;
 
 // 픽셀 에디터
-export const EDITOR_CANVAS_SIZES = [16, 24, 32] as const;
+export const EDITOR_CANVAS_SIZES = [8, 16, 24, 32, 48, 64] as const;
 export const DEFAULT_CANVAS_SIZE = 16;
 export const EDITOR_LAYER_COUNT = 4;
 export const EDITOR_LAYER_NAMES = ['몸체', '얼굴', '악세서리', '이펙트'] as const;
